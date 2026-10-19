@@ -1,0 +1,17 @@
+# arx_x5_ljn_pick_stage2_90k 专用（相对默认 x5_play_params.yaml）
+# 本配方：frame_align=none、物理 Δ（pos/rot scale=1.0）、dxyz_xy_remap 关。
+# 与 0813 的 x5_play_params_scratch_0813.yaml 一致（坐标系/scale 相同）。
+# 由 deploy_arxx5_ljn_pick_stage2_90k/run_local_client.sh 通过 X5_PLAY_PARAMS 注入。
+
+eef_xyz_offset_m: [0.0952, 0.001, 0.1565]
+
+workspace_min_xyz: [-0.3, 0.05, -0.3]
+workspace_max_xyz: [0.3, 0.55, 0.7]
+
+# frame_align=none + 物理 Δ：关
+dxyz_xy_remap_enabled: false
+
+ik_max_dq: 0.12
+max_joint_delta_rad: 0.08
+joint_ema: 0.9
+ik_damp: 0.02

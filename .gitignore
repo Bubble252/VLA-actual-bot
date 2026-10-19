@@ -1,0 +1,28 @@
+# 本地覆盖与缓存
+.local/
+*.pyc
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.DS_Store
+
+# 真机录像 / 回放产物（体积大，勿入库）
+deploy/rollouts/
+deploy/demo_parquet/
+**/*.avi
+**/*.mp4
+**/*.npz
+deploy/replay_*.txt
+
+# ROS2 编译产物（新机本地 colcon build）
+eval_root/ROS2/X5_ws/build/
+eval_root/ROS2/X5_ws/install/
+eval_root/ROS2/X5_ws/log/
+
+# 编辑器 / 密钥
+.env
+.env.*
+*.pem
+id_rsa*
+.vscode/
+.idea/

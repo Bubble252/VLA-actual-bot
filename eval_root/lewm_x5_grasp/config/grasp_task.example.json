@@ -1,0 +1,32 @@
+{
+  "loop_hz": 10.0,
+  "policy": {
+    "type": "scripted_pick"
+  },
+  "image": {
+    "path": "/tmp/latest_frame.npy"
+  },
+  "workspace": {
+    "min_xyz": [0.18, -0.25, 0.02],
+    "max_xyz": [0.55, 0.25, 0.35]
+  },
+  "mode4_guard": {
+    "enabled": true,
+    "max_pitch_rad": 1.35,
+    "min_pitch_rad": -1.35,
+    "max_rpy_step_rad": 0.12,
+    "max_xyz_step_m": 0.04,
+    "max_joint_vel_rad_s": 2.5,
+    "hold_on_joint_vel_spike": true
+  },
+  "task": {
+    "home_xyzrpy": [0.30, 0.00, 0.20, 3.14, 0.00, 0.00],
+    "pregrasp_xyzrpy": [0.32, 0.00, 0.16, 3.14, 0.00, 0.00],
+    "grasp_xyzrpy": [0.32, 0.00, 0.07, 3.14, 0.00, 0.00],
+    "lift_xyzrpy": [0.32, 0.00, 0.20, 3.14, 0.00, 0.00],
+    "open_gripper": 0.0,
+    "close_gripper": 1.2,
+    "position_tolerance": 0.015,
+    "close_hold_seconds": 1.0
+  }
+}

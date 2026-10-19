@@ -1,0 +1,6 @@
+numpy>=2
+opencv-python-headless>=4.10
+pyrealsense2
+h5py
+pandas
+pyarrow

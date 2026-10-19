@@ -1,0 +1,186 @@
+run_id: qwenact
+run_root_dir: results/Checkpoints
+seed: 42
+trackers: [jsonl, wandb]
+wandb_entity: wuhang23
+wandb_project: starVLA_Libero
+is_debug: false
+version_id: "0.21"
+
+framework:
+  name: QwenGR00T
+  qwenvl:
+    enable_hf_lora: false
+    lora_r: 16
+    lora_alpha: 32
+    lora_dropout: 0.05
+    lora_bias: none
+    # 先留空，代码里会自动扫描
+    lora_target_modules: []
+    base_vlm: /9950backfile/zhangjh/wh/starvla_wh/starVLA/spikebrain/SpikeBrain-2.0-VL
+    attn_implementation: flash_attention_2
+    # GDN + text/attn RMSNorm 保持 fp32（对齐 lmms-engine fp32_layer_cls_to_wrap）
+    ensure_fp32_sensitive_layers: true
+    ensure_gdn_fp32_params: true
+    # attn RMSNorm 输出 fp32 岛（对齐 lmms FSDP output_dtype=fp32；DeepSpeed 路径用 monkey-patch）
+    rmsnorm_fp32_forward: true
+    verify_fp32_after_prepare: true
+    # SPB2 SFT 同样用 bf16 SSE kernel；仅在实验时打开
+    sse_fp32_island: false
+    # hidden 全零 collapse 检测（>30% token 行全零或 std≈0 → grad-only skip）
+    vlm_hidden_collapse_row_ratio: 0.3
+    vlm_hidden_collapse_std_threshold: 1.0e-6
+    # Liger 仅用于非敏感算子（RoPE / SwiGLU）；text/attn RMSNorm 不替换
+    use_liger_kernel: true
+    liger_rope: true
+    liger_rms_norm: false
+    liger_swiglu: true
+    # lmms-engine 风格 sequence packing：B>1 时 concat 为 (1,S)+cu_seqlens 单次 varlen forward，再 unpack 给 DiT
+    # 需 per_device_bs>1 才有收益；bs=1 自动走普通路径。超 max_seqlen 时回退 micro-batch。
+    vlm_packing: false
+    vlm_packing_max_seqlen: 8192
+    # 全训 B>1 且 vlm_packing=false 时，VLM 按 micro_bs 循环 forward 再拼接；0=禁用（走 batched，bs>1 易 NaN）
+    vlm_micro_batch_size: 1
+    # 全训 B>1：逐样本 VLM(bs=1)+DiT forward，对 loss 取 mean（默认开；关则回退 micro-batch+pad 或 packing）
+    vlm_full_train_sample_wise: true
+    # 全训 VLM forward：保持 bf16（FA2 要求）；勿开 vlm_forward_fp32（backward 易卡死）
+    vlm_forward_fp32: false
+    vl_hidden_dim: 2048
+  action_model:
+    action_model_type: DiT-B
+    action_hidden_dim: 1024
+    hidden_size: 1024
+    action_dim: 7
+    state_dim: 7
+    future_action_window_size: 7
+    action_horizon: 8
+    past_action_window_size: 0
+    repeated_diffusion_steps: 6
+    num_inference_timesteps: 4
+    num_target_vision_tokens: 32
+    add_pos_embed: True
+    max_seq_len: 1024
+    num_timestep_buckets: 1000
+    noise_beta_alpha: 1.5
+    noise_beta_beta: 1.0
+    noise_s: 0.999
+    diffusion_model_cfg:
+      cross_attention_dim: 2048
+      dropout: 0.2
+      final_dropout: true
+      interleave_self_attention: true
+      norm_type: "ada_norm"
+      num_layers: 16
+      output_dim: 1024
+      positional_embeddings: null
+      # DiT forward runs in fp32 autocast island (QwenGR00T); weights stay bf16 via DeepSpeed.
+      upcast_attention: false
+    action_forward_chunk_size: 128
+    dit_loss_max_retries: 8
+    # finite loss 但 pred/velocity 极端时也重采样 noise（与 non-finite retry 共用 dit_loss_max_retries）
+    dit_pred_abs_max: 50.0
+    dit_pred_error_abs_max: 100.0
+    # FlowRAM 特有参数（保留；当前仍走 GR00T_ActionHeader，未接入 FlowRAM 头）
+    use_mamba_fusion: true
+    d_state: 16
+    d_conv: 4
+    expand: 2
+    use_region_attention: true
+
+datasets:
+  vlm_data:
+    dataset_py: vlm_datasets
+    dataformat: llava_json
+    dataset_use: sharegpt4v_coco
+    eval_dataset: sharegpt4v_coco
+    data_flatten: false
+    base_interval: 2
+    max_pixels: 307200
+    min_pixels: 784
+    model_max_length: 2048
+    model_type: qwen2.5vl
+    per_device_batch_size: 1
+
+  vla_data:
+    dataset_py: lerobot_datasets
+    data_root_dir: /9950backfile/zhangjh/wh/starvla_wh/starVLA/playground/Datasets/LEROBOT_LIBERO_DATA
+    data_mix: libero_all
+    action_type: delta_qpos
+    CoT_prompt: "Your task is {instruction}. Use one third-person view and one wrist view to identify task-relevant objects and spatial relations. Condition the DiT action head to predict an immediate {action_horizon}-step action sequence in the format [[x, y, z, roll, pitch, yaw, gripper], ...]."
+    default_image_resolution: [3, 224, 224]
+    per_device_batch_size: 32
+    load_all_data_for_training: true
+    obs: ["image_0", "image_1"]
+    video_backend: torchvision_av
+
+trainer:
+  epochs: 12
+  # max_train_steps 由 resolve_training_schedule() 按 epochs + 全局 batch 自动计算
+  max_train_steps: 100000
+  target_global_batch_size: 128
+  num_warmup_steps: 5000
+  save_interval: 250
+  eval_interval: 100
+  learning_rate:
+    base: 2.5e-05
+    # SPB2-VL SFT 三组 + action head（use_spb2vl_lr_groups=true 时生效）
+    spb2_lm: 5.0e-05
+    spb2_merge: 5.0e-05
+    spb2_ve: 1.0e-05
+    action_model: 1.0e-04
+  use_spb2vl_lr_groups: true
+  lr_scheduler_type: cosine_with_min_lr
+  scheduler_specific_kwargs:
+    min_lr: 1.0e-06
+  # 单阶段全训 VLM+DiT（对齐 SPB2-VL SFT）；空字符串 = 不冻结
+  freeze_modules: ''
+  loss_scale:
+    vla: 1.0
+    vlm: 0.1
+  max_grad_norm: 1.0
+  warmup_ratio: 0.1
+  weight_decay: 0.1
+  logging_frequency: 10
+  gradient_clipping: 1.0
+  gradient_accumulation_steps: 4
+  # true: VLM hidden NaN/collapse -> sanitize + continue; skip optimizer only when grad bad/collapse
+  skip_non_finite_loss: true
+  max_grad_skips: 50
+  # grad_norm 超过阈值也 skip optimizer step（不只 NaN/Inf）；0 或省略表示仅判 non-finite
+  max_grad_norm_skip_threshold: 1000.0
+  # 关键数值探测：step<=40 每步检查；之后每 100 步（约 25min@15s/step）
+  numerical_probe:
+    enabled: true
+    critical_step_until: 40
+    interval_after: 100
+    layer_hidden_check: true
+    rmsnorm_hook_check: true
+    attention_check: false
+    norm_eps: 1.0e-5
+    log_eps: 1.0e-8
+  # lmms-style grad diagnostics: grouped grad norms / NaN flags (JSONL under output_dir/grad_logs)
+  grad_log:
+    enabled: false
+    until_step: 200
+    every_n_steps: 1
+    rank0_only: true
+    log_groups: true
+    param_patterns:
+      - merge_norm
+      - sse_o_norm
+      - A_log
+      - dt_bias
+      - norm
+      - ln_
+      - proj
+    dir: null
+  optimizer:
+    name: AdamW
+    betas: [0.9, 0.99]
+    eps: 1.0e-05
+    weight_decay: 0.1
+  is_resume: false
+  resume_epoch: null
+  resume_step: null
+  enable_gradient_checkpointing: false
+  enable_mixed_precision_training: true
