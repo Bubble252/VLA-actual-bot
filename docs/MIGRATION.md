@@ -16,31 +16,48 @@
 
 ---
 
-## 推到 GitHub（私有仓推荐）
+## 线上仓库
 
-勿 push 到上游 `ARXroboticsX/ARX_X5`。建议新建私有仓：
+目标仓（当前为空，需 push 首次内容）：
+
+**https://github.com/Bubble252/VLA-actual-bot**
+
+本地已配置：
 
 ```bash
-cd /path/to/arx_x5_ljn_deploy
+cd ~/project/arx_x5_ljn_deploy
+git remote -v
+# origin  https://github.com/Bubble252/VLA-actual-bot.git
+```
 
-# 若尚未 init（本仓初始化时一般已做过）
-git status
+### 首次推送（需本机已登录 GitHub）
 
-# 创建并推送（需已登录 gh）
-gh repo create arx_x5_ljn_deploy --private --source=. --remote=origin --push
+本机若未配 GitHub 凭证，任选其一：
 
-# 或手动
-# git remote add origin git@github.com:<you>/arx_x5_ljn_deploy.git
-# git push -u origin main
+```bash
+# 推荐：安装 gh 后登录再推
+# sudo apt install gh   # 或见 https://cli.github.com/
+gh auth login
+cd ~/project/arx_x5_ljn_deploy
+git push -u origin main
+
+# 或：SSH（把本机 ~/.ssh/id_rsa.pub 加到 GitHub → Settings → SSH keys）
+git remote set-url origin git@github.com:Bubble252/VLA-actual-bot.git
+git push -u origin main
+
+# 或：HTTPS + Personal Access Token（推送时密码处粘贴 token）
+git push -u origin main
 ```
 
 新机：
 
 ```bash
-git clone git@github.com:<you>/arx_x5_ljn_deploy.git
-cd arx_x5_ljn_deploy
+git clone https://github.com/Bubble252/VLA-actual-bot.git
+cd VLA-actual-bot
 # 然后按根目录 README「新机最短路径」编译 ROS2 并启动
 ```
+
+勿把本配方 push 到上游 `ARXroboticsX/ARX_X5`。
 
 ---
 

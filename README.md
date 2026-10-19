@@ -48,12 +48,13 @@ arx_x5_ljn_deploy/
 ### 1. 拿到本仓
 
 ```bash
-# 方式 A：GitHub（推送后）
-git clone <你的私有仓 URL> ~/arx_x5_ljn_deploy
+# 方式 A：GitHub
+# https://github.com/Bubble252/VLA-actual-bot
+git clone https://github.com/Bubble252/VLA-actual-bot.git ~/arx_x5_ljn_deploy
 cd ~/arx_x5_ljn_deploy
 
-# 方式 B：本机已有目录则直接用
-cd /path/to/arx_x5_ljn_deploy
+# 方式 B：本机开发目录（已配 origin）
+cd ~/project/arx_x5_ljn_deploy
 ```
 
 路径已由 `deploy/env.sh` 按仓库根自动解析，一般**不用改**。若目录改名，仍以「仓根」为准。
